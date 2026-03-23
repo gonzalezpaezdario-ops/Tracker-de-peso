@@ -4,147 +4,189 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WeightTrack Pro</title>
+    <link rel="apple-touch-icon" href="https://fav.farm/⚖️">
     <link rel="icon" href="https://fav.farm/⚖️">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style>
-        body { transition: background-color 0.3s; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
-        .glow-button:active { transform: scale(0.95); box-shadow: 0 0 15px #10b981; }
-        /* Forzar que el canvas ocupe su espacio */
-        #chartContainer { min-height: 220px; width: 100%; position: relative; }
+        body { transition: background-color 0.3s ease; font-family: system-ui, -apple-system, sans-serif; }
+        .glow-button:active { transform: scale(0.92); box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        canvas { width: 100% !important; height: 100% !important; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-10 px-4">
     <div class="max-w-md mx-auto">
         <header class="py-8 flex justify-between items-center">
-            <h1 class="text-3xl font-black text-slate-800 dark:text-white italic uppercase">Weight<span class="text-emerald-500">Track</span></h1>
-            <button id="themeToggle" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700">🌙</button>
+            <div>
+                <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tighter italic uppercase">Weight<span class="text-emerald-500">Track</span></h1>
+                <p id="dateDisplay" class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1"></p>
+            </div>
+            <button id="themeToggle" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700">
+                <span class="dark:hidden">🌙</span><span class="hidden dark:inline">☀️</span>
+            </button>
         </header>
 
-        <div class="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl mb-4 border dark:border-slate-700">
-            <form id="weightForm" class="space-y-6 text-center">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peso hoy (kg)</label>
-                <input type="number" id="weightInput" step="0.1" required class="w-full bg-transparent text-center text-6xl font-black text-slate-800 dark:text-white outline-none">
-                <input type="date" id="dateInput" required class="w-full p-4 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 text-center">
-                <button type="submit" class="w-full bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-lg uppercase text-xs active:scale-95 transition-all">Registrar</button>
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-[3rem] shadow-xl mb-4 border border-transparent dark:border-slate-700">
+            <form id="weightForm" class="space-y-6">
+                <div class="text-center">
+                    <label class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Peso hoy (kg)</label>
+                    <input type="number" id="weightInput" step="0.1" required
+                        class="w-full bg-transparent border-none text-center text-6xl font-black text-slate-800 dark:text-white outline-none focus:ring-0">
+                </div>
+                <input type="date" id="dateInput" required
+                    class="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 text-center outline-none">
+                <button type="submit" class="w-full bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-lg shadow-emerald-200 dark:shadow-none uppercase tracking-widest text-xs active:scale-95 transition-all">
+                    Registrar Sesión
+                </button>
             </form>
+            <p id="errorMsg" class="text-red-500 text-[10px] mt-4 text-center font-bold hidden text-shadow">⚠️ YA EXISTE UN REGISTRO HOY</p>
         </div>
 
-        <div class="flex justify-center gap-6 mb-8">
-            <button onclick="stepWeight(-0.1)" class="glow-button w-20 h-14 bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 text-emerald-500 font-black">-0.1</button>
-            <button onclick="stepWeight(0.1)" class="glow-button w-20 h-14 bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 text-emerald-500 font-black">+0.1</button>
+        <div class="flex justify-center gap-6 mb-10">
+            <button onclick="stepWeight(-0.1)" class="glow-button w-20 h-14 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-emerald-400 font-black text-lg">-0.1</button>
+            <button onclick="stepWeight(0.1)" class="glow-button w-20 h-14 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-emerald-400 font-black text-lg">+0.1</button>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 p-4 rounded-[2rem] shadow-sm mb-8 border dark:border-slate-700">
-            <div id="chartContainer">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-[2.5rem] shadow-sm mb-8 border border-transparent dark:border-slate-700">
+            <div style="position: relative; height: 200px; width: 100%;">
                 <canvas id="weightChart"></canvas>
             </div>
         </div>
 
-        <div id="historyList" class="space-y-3"></div>
+        <div id="historyList" class="space-y-4 px-1"></div>
     </div>
 
     <script>
         let logs = JSON.parse(localStorage.getItem('weightLogs')) || [];
         let chartInstance = null;
 
-        // 1. Sincronizar UI
-        function initApp() {
-            const dateInput = document.getElementById('dateInput');
-            const weightInput = document.getElementById('weightInput');
-            
-            // Fecha hoy
-            dateInput.value = new Date().toISOString().split('T')[0];
-            
-            // Peso inicial
+        // Sincronizar fecha al abrir
+        function syncDate() {
+            const now = new Date();
+            const offset = now.getTimezoneOffset() * 60000;
+            const localISODate = (new Date(now - offset)).toISOString().split('T')[0];
+            document.getElementById('dateInput').value = localISODate;
+            document.getElementById('dateDisplay').innerText = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+        }
+
+        function setInitialWeight() {
             if (logs.length > 0) {
                 const sorted = [...logs].sort((a,b) => new Date(a.date) - new Date(b.date));
-                weightInput.value = sorted[sorted.length - 1].weight.toFixed(1);
+                document.getElementById('weightInput').value = sorted[sorted.length - 1].weight.toFixed(1);
             } else {
-                weightInput.value = "75.0";
+                document.getElementById('weightInput').value = "70.0";
             }
-            
-            updateChart();
-            renderHistory();
         }
 
         function stepWeight(val) {
             const input = document.getElementById('weightInput');
-            input.value = (parseFloat(input.value || 75) + val).toFixed(1);
+            input.value = (parseFloat(input.value || 70) + val).toFixed(1);
         }
 
-        // 2. Lógica del Gráfico (ULTRA COMPATIBLE)
+        // Gráfico con soporte para modo oscuro
         function updateChart() {
-            const ctx = document.getElementById('weightChart');
-            if (!ctx) return;
+            const isDark = document.documentElement.classList.contains('dark');
+            const color = isDark ? '#10b981' : '#10b981';
+            const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+            
+            logs.sort((a, b) => new Date(a.date) - new Date(b.date));
+            const labels = logs.map(l => l.date.split('-').reverse().slice(0,2).join('/'));
+            const values = logs.map(l => l.weight);
 
-            // Ordenar datos
-            const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
-            const labels = sortedLogs.map(l => l.date.split('-').reverse().slice(0,2).join('/'));
-            const data = sortedLogs.map(l => l.weight);
-
-            // Destruir gráfico previo si existe para evitar errores en móvil
             if (chartInstance) {
-                chartInstance.destroy();
-            }
-
-            // Crear nuevo gráfico
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        borderColor: '#10b981',
-                        borderWidth: 4,
-                        tension: 0.3,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#10b981',
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 500 },
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { 
-                            grid: { color: 'rgba(150,150,150,0.1)' },
-                            ticks: { color: '#94a3b8', font: { size: 10 } }
-                        },
-                        x: { 
-                            grid: { display: false },
-                            ticks: { color: '#94a3b8', font: { size: 10 } }
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = values;
+                chartInstance.options.scales.x.grid.color = gridColor;
+                chartInstance.options.scales.y.grid.color = gridColor;
+                chartInstance.update();
+            } else {
+                const ctx = document.getElementById('weightChart').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            borderColor: color,
+                            borderWidth: 4,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: color,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: gridColor }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
                         }
                     }
-                }
-            });
+                });
+            }
         }
 
         function renderHistory() {
             const list = document.getElementById('historyList');
-            list.innerHTML = '';
-            [...logs].sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(entry => {
+            list.innerHTML = '<h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Historial</h3>';
+            [...logs].reverse().forEach(entry => {
                 const div = document.createElement('div');
-                div.className = "flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700 shadow-sm";
+                div.className = "flex items-center justify-between bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm";
                 div.innerHTML = `
-                    <span class="font-black text-slate-800 dark:text-white text-lg">${entry.weight} kg</span>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase">${entry.date}</span>
-                    <button onclick="deleteEntry(${entry.id})" class="text-slate-200 hover:text-red-500 px-2">✕</button>
+                    <div class="flex items-center gap-4">
+                        <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+                        <span class="font-black text-slate-800 dark:text-white text-lg">${entry.weight} kg</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">${entry.date}</span>
+                        <button onclick="deleteEntry(${entry.id})" class="text-slate-200 p-1">✕</button>
+                    </div>
                 `;
                 list.appendChild(div);
             });
         }
 
-        // 3. Eventos
         document.getElementById('weightForm').onsubmit = (e) => {
             e.preventDefault();
             const weight = parseFloat(document.getElementById('weightInput').value);
             const date = document.getElementById('dateInput').value;
 
             if (logs.some(l => l.date === date)) {
-                alert("Ya tienes un peso para hoy.");
+                document.getElementById('errorMsg').classList.remove('hidden');
+                setTimeout(() => document.getElementById('errorMsg').classList.add('hidden'), 3000);
                 return;
             }
+
+            logs.push({ id: Date.now(), weight, date });
+            localStorage.setItem('weightLogs', JSON.stringify(logs));
+            updateChart();
+            renderHistory();
+        };
+
+        window.deleteEntry = (id) => {
+            if(confirm('¿Eliminar?')) {
+                logs = logs.filter(l => l.id !== id);
+                localStorage.setItem('weightLogs', JSON.stringify(logs));
+                updateChart();
+                renderHistory();
+            }
+        };
+
+        // Tema
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+        document.getElementById('themeToggle').onclick = () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            updateChart();
+        };
+
+        window.onload = () => { syncDate(); setInitialWeight(); updateChart(); renderHistory(); };
+    </script>
+</body>
+</html>
