@@ -3,24 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Orejas's Tracker</title>
+    <title>Oreja's Tracker</title>
     <link rel="icon" href="https://fav.farm/⚖️">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script>
+        // SCRIPT DE BLOQUEO: Se ejecuta antes de cargar el HTML para evitar destellos blancos
+        tailwind.config = { darkMode: 'class' };
+        
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
     <style>
         body { transition: background-color 0.3s; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
         .glow-button:active { transform: scale(0.95); box-shadow: 0 0 15px #10b981; }
         #chartContainer { min-height: 220px; width: 100%; position: relative; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
+        .title-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-10 px-4">
     <div class="max-w-md mx-auto">
         <header class="py-8 flex justify-between items-center">
-            <h1 class="text-3xl font-black text-slate-800 dark:text-white italic uppercase text-shadow">Oreja's<span class="text-emerald-500">Tracker</span></h1>
-            <button id="themeToggle" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border dark:border-slate-700">🌙</button>
+            <h1 class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter title-glow">Oreja's <span class="text-emerald-500">Tracker</span></h1>
+            <button id="themeToggle" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border dark:border-slate-700 text-xl"></button>
         </header>
 
         <div class="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl mb-4 border dark:border-slate-700">
@@ -53,11 +64,15 @@
         function initApp() {
             const dateInput = document.getElementById('dateInput');
             const weightInput = document.getElementById('weightInput');
+            const themeBtn = document.getElementById('themeToggle');
+            
+            // Sincronizar icono del botón al cargar
+            themeBtn.innerText = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+
             dateInput.value = new Date().toISOString().split('T')[0];
             
             if (logs.length > 0) {
                 const sorted = [...logs].sort((a,b) => new Date(a.date) - new Date(b.date));
-                // Mostramos 2 decimales si existen
                 weightInput.value = sorted[sorted.length - 1].weight;
             } else {
                 weightInput.value = "75.00";
@@ -68,7 +83,6 @@
 
         function stepWeight(val) {
             const input = document.getElementById('weightInput');
-            // Mantenemos la lógica de sumar 0.1 pero permitiendo el valor actual con 2 decimales
             let current = parseFloat(input.value || 75);
             input.value = (current + val).toFixed(2);
         }
@@ -76,18 +90,17 @@
         function updateChart() {
             const ctx = document.getElementById('weightChart');
             if (!ctx) return;
+            const isDark = document.documentElement.classList.contains('dark');
             const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
-            const labels = sortedLogs.map(l => l.date.split('-').reverse().slice(0,2).join('/'));
-            const data = sortedLogs.map(l => l.weight);
-
+            
             if (chartInstance) chartInstance.destroy();
 
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: sortedLogs.map(l => l.date.split('-').reverse().slice(0,2).join('/')),
                     datasets: [{
-                        data: data,
+                        data: sortedLogs.map(l => l.weight),
                         borderColor: '#10b981',
                         borderWidth: 4,
                         tension: 0.3,
@@ -101,8 +114,14 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(150,150,150,0.1)' } },
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                        y: { 
+                            ticks: { color: isDark ? '#94a3b8' : '#64748b' }, 
+                            grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } 
+                        },
+                        x: { 
+                            ticks: { color: isDark ? '#94a3b8' : '#64748b' }, 
+                            grid: { display: false } 
+                        }
                     }
                 }
             });
@@ -117,7 +136,7 @@
                 div.innerHTML = `
                     <span class="font-black text-slate-800 dark:text-white text-lg">${entry.weight} kg</span>
                     <span class="text-[10px] font-bold text-slate-400 uppercase">${entry.date}</span>
-                    <button onclick="deleteEntry(${entry.id})" class="text-slate-200 px-2">✕</button>
+                    <button onclick="deleteEntry(${entry.id})" class="text-slate-300 px-2 hover:text-red-500">✕</button>
                 `;
                 historyList.appendChild(div);
             });
@@ -145,7 +164,7 @@
 
         document.getElementById('themeToggle').onclick = () => {
             const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.theme = isDark ? 'dark' : 'light';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
             document.getElementById('themeToggle').innerText = isDark ? '☀️' : '🌙';
             updateChart();
         };
