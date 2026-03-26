@@ -8,9 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
-        // SCRIPT DE BLOQUEO: Se ejecuta antes de cargar el HTML para evitar destellos blancos
         tailwind.config = { darkMode: 'class' };
-        
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -26,29 +24,43 @@
         input[type=number] { -moz-appearance: textfield; }
         .title-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
 
-        /* Animación Neón para el resumen */
-        @keyframes neonText {
-            0%, 100% { text-shadow: 0 0 5px rgba(16, 185, 129, 0.2), 0 0 10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.1); opacity: 0.8; }
-            50% { text-shadow: 0 0 10px rgba(16, 185, 129, 0.6), 0 0 20px rgba(16, 185, 129, 0.4), 0 0 40px rgba(16, 185, 129, 0.3); opacity: 1; }
+        /* Animación Neón y Desvanecimiento */
+        @keyframes neonPulse {
+            0%, 100% { text-shadow: 0 0 5px #10b981, 0 0 10px #10b981; opacity: 0.9; }
+            50% { text-shadow: 0 0 15px #10b981, 0 0 { 30px #10b981; opacity: 1; }
         }
-        .neon-summary {
-            animation: neonText 2s ease-in-out infinite;
-            display: none; /* Se activa por JS */
+        
+        #summaryPanel {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            align-items: center; justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(12px);
+            background: rgba(248, 250, 252, 0.9);
+            transition: opacity 0.8s ease, visibility 0.8s;
         }
+        .dark #summaryPanel { background: rgba(15, 23, 42, 0.95); }
+
+        .neon-content { animation: neonPulse 1.5s infinite; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-10 px-4">
+    
+    <div id="summaryPanel" onclick="closeSummary()">
+        <div class="max-w-xs text-center p-8 rounded-[3rem] neon-content">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-4">Estado del Progreso</p>
+            <p id="totalLostText" class="text-5xl font-black text-emerald-500 tracking-tighter mb-6"></p>
+            <p id="motivationText" class="text-sm text-slate-600 dark:text-slate-300 font-bold leading-relaxed mb-8 italic"></p>
+            <p class="text-[8px] text-slate-400 uppercase tracking-widest animate-pulse mt-4">Toca para continuar</p>
+        </div>
+    </div>
+
     <div class="max-w-md mx-auto">
         <header class="py-8 flex justify-between items-center">
             <h1 class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter title-glow">Oreja's <span class="text-emerald-500">Tracker</span></h1>
             <button id="themeToggle" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border dark:border-slate-700 text-xl"></button>
         </header>
-
-        <div id="summaryPanel" class="neon-summary bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl mb-6 border dark:border-slate-700 text-center">
-            <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2">Progreso Total</p>
-            <p id="totalLostText" class="text-4xl font-black text-emerald-500 dark:text-emerald-400 tracking-tighter mb-3"></p>
-            <p id="motivationText" class="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed px-2"></p>
-        </div>
 
         <div class="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl mb-4 border dark:border-slate-700">
             <form id="weightForm" class="space-y-6 text-center">
@@ -82,9 +94,7 @@
             const weightInput = document.getElementById('weightInput');
             const themeBtn = document.getElementById('themeToggle');
             
-            // Sincronizar icono del botón al cargar
             themeBtn.innerText = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
-
             dateInput.value = new Date().toISOString().split('T')[0];
             
             if (logs.length > 0) {
@@ -95,64 +105,60 @@
             }
             updateChart();
             renderHistory();
-            generateSummary(); // Generar resumen al iniciar
+            generateSummary(); 
         }
 
-        // NUEVA FUNCIÓN: Lógica del Resumen Motivador
+        // Lógica de Resumen Temporal (Splash)
         function generateSummary() {
+            if (logs.length < 2) return;
+
             const panel = document.getElementById('summaryPanel');
             const totalText = document.getElementById('totalLostText');
             const motivText = document.getElementById('motivationText');
 
-            if (logs.length < 2) {
-                panel.style.display = 'none';
-                return;
-            }
-
-            // Ordenar cronológicamente
             const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
             const firstWeight = sortedLogs[0].weight;
             const currentWeight = sortedLogs[sortedLogs.length - 1].weight;
             const totalDiff = (currentWeight - firstWeight).toFixed(2);
 
-            panel.style.display = 'block';
-
-            // 1. Texto de peso total
+            // Texto de peso total
             if (totalDiff < 0) {
-                totalText.innerText = `${Math.abs(totalDiff)} kg PERDIDOS`;
-                totalText.className = "text-4xl font-black text-emerald-500 dark:text-emerald-400 tracking-tighter mb-3";
+                totalText.innerText = `${Math.abs(totalDiff)} kg MENOS`;
             } else if (totalDiff > 0) {
-                totalText.innerText = `${totalDiff} kg GANADOS`;
-                totalText.className = "text-4xl font-black text-red-500 dark:text-red-400 tracking-tighter mb-3";
+                totalText.innerText = `${totalDiff} kg MÁS`;
             } else {
-                totalText.innerText = "MANTENIENDO PESO";
-                totalText.className = "text-3xl font-black text-slate-500 dark:text-slate-400 tracking-tighter mb-3";
+                totalText.innerText = "PESO ESTABLE";
             }
 
-            // 2. Lógica de motivación realista
             const lastWeight = sortedLogs[sortedLogs.length - 1].weight;
             const prevWeight = sortedLogs[sortedLogs.length - 2].weight;
             const lastDiff = (lastWeight - prevWeight).toFixed(2);
 
             const messages = [
-                "¡Ojo! Una subida puntual suele ser retención de líquidos o glucógeno. No es grasa real. ¡Sigue confiando en tu déficit!",
-                "Las fluctuaciones son normales. El peso no baja en línea recta. Mira tu gráfico: la tendencia general es lo que cuenta.",
-                "Mantén la calma. Si sigues en déficit, estás perdiendo grasa aunque el número suba hoy. ¡No te rindas!",
-                "Has tenido subidas y bajadas, pero es parte del proceso. Tu cuerpo se está ajustando. ¡A por el siguiente registro!",
-                "¡Gran trabajo! Sigue así. Cada gramo cuenta y vas por muy buen camino."
+                "¡Ojo! La subida suele ser agua o glucógeno. No es grasa. ¡Confía en el proceso!",
+                "Las fluctuaciones son normales. El peso no baja lineal. ¡Sigue así!",
+                "Calma. Si hay déficit, hay quema de grasa aunque el número suba hoy.",
+                "Sube y baja, es parte del juego. Tu cuerpo se está ajustando.",
+                "¡Gran trabajo! Cada gramo cuenta y vas por muy buen camino."
             ];
 
-            if (lastDiff > 0.1) {
-                // Ha subido más de 100g
-                const randomSubida = messages[Math.floor(Math.random() * 4)]; // Mensajes 0 al 3 (motivadores de fluctuación)
-                motivText.innerText = `${randomSubida} (Subida de ${lastDiff} kg respecto al último registro).`;
-            } else if (lastDiff < -0.1) {
-                // Ha bajado más de 100g
-                motivText.innerText = messages[4]; // Mensaje de éxito
+            if (lastDiff > 0.05) {
+                motivText.innerText = messages[Math.floor(Math.random() * 4)];
             } else {
-                // Mantenimiento
-                motivText.innerText = "Peso estable. Sigue siendo constante, los resultados llegarán.";
+                motivText.innerText = messages[4];
             }
+
+            // Mostrar el panel con Flexbox
+            panel.style.display = 'flex';
+            
+            // Cerrar automáticamente a los 10 segundos
+            setTimeout(closeSummary, 10000);
+        }
+
+        function closeSummary() {
+            const panel = document.getElementById('summaryPanel');
+            panel.style.opacity = '0';
+            setTimeout(() => { panel.style.display = 'none'; }, 800);
         }
 
         function stepWeight(val) {
@@ -168,7 +174,6 @@
             const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
             
             if (chartInstance) chartInstance.destroy();
-
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -177,25 +182,15 @@
                         data: sortedLogs.map(l => l.weight),
                         borderColor: '#10b981',
                         borderWidth: 4,
-                        tension: 0.3,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#10b981',
-                        fill: false
+                        tension: 0.3, pointRadius: 5, pointBackgroundColor: '#10b981', fill: false
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { 
-                            ticks: { color: isDark ? '#94a3b8' : '#64748b' }, 
-                            grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } 
-                        },
-                        x: { 
-                            ticks: { color: isDark ? '#94a3b8' : '#64748b' }, 
-                            grid: { display: false } 
-                        }
+                        y: { ticks: { color: isDark ? '#94a3b8' : '#64748b' }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } },
+                        x: { ticks: { color: isDark ? '#94a3b8' : '#64748b' }, grid: { display: false } }
                     }
                 }
             });
@@ -210,9 +205,9 @@
                 div.innerHTML = `
                     <span class="font-black text-slate-800 dark:text-white text-lg">${entry.weight} kg</span>
                     <span class="text-[10px] font-bold text-slate-400 uppercase">${entry.date}</span>
-                    <button onclick="deleteEntry(${entry.id})" class="text-slate-300 px-2 hover:text-red-500">✕</button>
+                    <button onclick="deleteEntry(${entry.id})" class="text-slate-300 px-2">✕</button>
                 `;
-                list.appendChild(div);
+                historyList.appendChild(div);
             });
         }
 
@@ -220,12 +215,11 @@
             e.preventDefault();
             const weight = parseFloat(document.getElementById('weightInput').value);
             const date = document.getElementById('dateInput').value;
-            if (logs.some(l => l.date === date)) { alert("Ya hay un registro para hoy"); return; }
+            if (logs.some(l => l.date === date)) { alert("Ya hay registro hoy"); return; }
             logs.push({ id: Date.now(), weight, date });
             localStorage.setItem('weightLogs', JSON.stringify(logs));
             updateChart();
             renderHistory();
-            generateSummary(); // Actualizar resumen al añadir
         };
 
         window.deleteEntry = (id) => {
@@ -234,7 +228,6 @@
                 localStorage.setItem('weightLogs', JSON.stringify(logs));
                 updateChart();
                 renderHistory();
-                generateSummary(); // Actualizar resumen al borrar
             }
         };
 
