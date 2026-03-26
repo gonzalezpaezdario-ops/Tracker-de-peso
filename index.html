@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
+        // SCRIPT DE BLOQUEO PRE-RENDER: Evita el destello blanco y asegura el modo oscuro instantáneo
         tailwind.config = { darkMode: 'class' };
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -17,43 +18,88 @@
         }
     </script>
     <style>
-        body { transition: background-color 0.3s; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { transition: background-color 0.3s; font-family: sans-serif; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        .card { transition: all 0.3s ease; }
         .glow-button:active { transform: scale(0.95); box-shadow: 0 0 15px #10b981; }
         #chartContainer { min-height: 220px; width: 100%; position: relative; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        .title-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+        .title-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
 
-        /* CAPA NEÓN DE ENTRADA (SPLASH SCREEN) */
-        #summarySplash {
+        /* --- OPTIMIZACIÓN EXTREMA NEÓN (FULL SCREEN SPLASH) --- */
+        
+        /* Contenedor principal que ocupa toda la pantalla y desenfoca el fondo */
+        #neonOverlay {
             position: fixed;
             inset: 0;
-            z-index: 99999;
+            z-index: 99999; /* Máxima prioridad visual */
             display: none; /* Se activa por JS */
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(15px);
-            background: rgba(248, 250, 252, 0.9);
+            backdrop-filter: blur(15px) saturate(180%); /* Desenfoque ultra-fluido */
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            background: rgba(248, 250, 252, 0.8);
             opacity: 0;
-            transition: opacity 0.6s ease;
+            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* Transición suave */
+            cursor: pointer; /* Indica que se puede cerrar tocando */
         }
-        .dark #summarySplash { background: rgba(15, 23, 42, 0.96); }
+        .dark #neonOverlay { background: rgba(15, 23, 42, 0.9); }
 
-        @keyframes neonPulse {
-            0%, 100% { text-shadow: 0 0 10px #10b981, 0 0 20px #10b981; transform: scale(1); }
-            50% { text-shadow: 0 0 20px #10b981, 0 0 40px #10b981; transform: scale(1.02); }
+        /* Caja contenedora del mensaje con toques neón */
+        .neon-box {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(16, 185, 129, 0.2);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.1), inset 0 0 10px rgba(16, 185, 129, 0.05);
+            animation: boxPulse 4s infinite ease-in-out;
+            transform: scale(0.9);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); /* Efecto muelle al aparecer */
         }
-        .neon-content { animation: neonPulse 2s infinite ease-in-out; }
+        .dark .neon-box { 
+            background: rgba(30, 41, 59, 0.8); 
+            border: 2px solid rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.2), inset 0 0 15px rgba(16, 185, 129, 0.1);
+        }
+
+        /* Animaciones CSS (Aceleradas por hardware) */
+        @keyframes boxPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1), inset 0 0 10px rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); }
+            50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.3), inset 0 0 20px rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.5); }
+        }
+
+        @keyframes textFlicker {
+            0%, 100% { text-shadow: 0 0 8px rgba(16, 185, 129, 0.5), 0 0 15px rgba(16, 185, 129, 0.3); opacity: 1; }
+            50% { text-shadow: 0 0 15px rgba(16, 185, 129, 0.8), 0 0 30px rgba(16, 185, 129, 0.5); opacity: 0.95; }
+            80% { text-shadow: 0 0 10px rgba(16, 185, 129, 0.6); opacity: 1; }
+        }
+
+        .neon-text-lost {
+            animation: textFlicker 3s infinite;
+            color: #10b981; /* Emerald 500 */
+        }
+        
+        /* Clase para activar la aparición smooth */
+        #neonOverlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        #neonOverlay.active .neon-box {
+            transform: scale(1);
+        }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-10 px-4">
+<body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-10 px-4 overflow-x-hidden">
     
-    <div id="summarySplash" onclick="closeSplash()">
-        <div class="max-w-xs text-center p-8 neon-content">
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] mb-4">Análisis de Progreso</p>
-            <p id="totalLostText" class="text-5xl font-black text-emerald-500 tracking-tighter mb-6"></p>
-            <p id="motivationText" class="text-sm text-slate-600 dark:text-slate-300 font-bold leading-relaxed italic mb-8"></p>
-            <p class="text-[8px] text-slate-400 uppercase tracking-widest animate-bounce">Toca para entrar</p>
+    <div id="neonOverlay" onclick="closeNeonOverlay()">
+        <div class="neon-box max-w-sm w-full mx-6 p-10 rounded-[3rem] text-center space-y-6">
+            <p class="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em]">Análisis de Progreso</p>
+            
+            <p id="totalLostText" class="neon-text-lost text-5xl font-black tracking-tighter"></p>
+            
+            <p id="motivationText" class="text-sm text-slate-600 dark:text-slate-200 font-bold leading-relaxed italic px-2"></p>
+            
+            <div class="pt-4">
+                <p class="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest animate-pulse">Toca la pantalla para continuar</p>
+            </div>
         </div>
     </div>
 
@@ -63,11 +109,11 @@
             <button id="themeToggle" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border dark:border-slate-700 text-xl"></button>
         </header>
 
-        <div class="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl mb-4 border dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl mb-4 border dark:border-slate-700 card">
             <form id="weightForm" class="space-y-6 text-center">
                 <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Peso hoy (kg)</label>
-                <input type="number" id="weightInput" step="0.01" required class="w-full bg-transparent text-center text-6xl font-black text-slate-800 dark:text-white outline-none">
-                <input type="date" id="dateInput" required class="w-full p-4 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 text-center">
+                <input type="number" id="weightInput" step="0.01" required class="w-full bg-transparent text-center text-6xl font-black text-slate-800 dark:text-white outline-none focus:ring-0">
+                <input type="date" id="dateInput" required class="w-full p-4 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 text-center outline-none">
                 <button type="submit" class="w-full bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-lg uppercase text-xs active:scale-95 transition-all">Registrar</button>
             </form>
         </div>
@@ -77,7 +123,7 @@
             <button onclick="stepWeight(0.1)" class="glow-button w-20 h-14 bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 text-emerald-500 font-black">+0.1</button>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 p-4 rounded-[2rem] shadow-sm mb-8 border dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 p-4 rounded-[2rem] shadow-sm mb-8 border dark:border-slate-700 card">
             <div id="chartContainer">
                 <canvas id="weightChart"></canvas>
             </div>
@@ -89,6 +135,7 @@
     <script>
         let logs = JSON.parse(localStorage.getItem('weightLogs')) || [];
         let chartInstance = null;
+        let autoCloseTimer = null; // Temporizador para auto-cerrar
 
         function initApp() {
             const dateInput = document.getElementById('dateInput');
@@ -102,21 +149,20 @@
                 const sorted = [...logs].sort((a,b) => new Date(a.date) - new Date(b.date));
                 weightInput.value = sorted[sorted.length - 1].weight;
                 
-                // SOLO ACTIVAR EL SPLASH SI HAY DATOS PARA COMPARAR
+                // NUEVO: Ejecutar el resumen inmersivo si hay datos suficientes
                 if (logs.length >= 2) {
-                    showSplash(sorted);
+                    showInmersiveSummary(sorted);
                 }
             } else {
                 weightInput.value = "75.00";
             }
-            
             updateChart();
             renderHistory();
         }
 
-        // Lógica de la Pantalla Splash
-        function showSplash(sortedLogs) {
-            const splash = document.getElementById('summarySplash');
+        // NUEVA FUNCIÓN: Lógica y control del Overlay Inmersivo
+        function showInmersiveSummary(sortedLogs) {
+            const overlay = document.getElementById('neonOverlay');
             const totalText = document.getElementById('totalLostText');
             const motivText = document.getElementById('motivationText');
 
@@ -124,12 +170,16 @@
             const currentWeight = sortedLogs[sortedLogs.length - 1].weight;
             const totalDiff = (currentWeight - firstWeight).toFixed(2);
 
+            // 1. CÁLCULO DE DATOS REALES
             if (totalDiff < 0) {
                 totalText.innerText = `${Math.abs(totalDiff)} kg MENOS`;
+                totalText.className = "neon-text-lost text-5xl font-black tracking-tighter flicker-animation";
             } else if (totalDiff > 0) {
                 totalText.innerText = `${totalDiff} kg MÁS`;
+                totalText.className = "text-5xl font-black tracking-tighter text-red-500 dark:text-red-400 title-glow flicker-animation";
             } else {
                 totalText.innerText = "PESO ESTABLE";
+                totalText.className = "text-4xl font-black tracking-tighter text-slate-500 title-glow flicker-animation";
             }
 
             const lastWeight = sortedLogs[sortedLogs.length - 1].weight;
@@ -144,20 +194,39 @@
                 "¡Gran trabajo! Cada gramo cuenta y vas por muy buen camino."
             ];
 
+            // Elegir mensaje realista basado en la tendencia
             motivText.innerText = (lastDiff > 0.05) ? messages[Math.floor(Math.random() * 4)] : messages[4];
 
-            // Mostrar con pequeña demora para asegurar el renderizado
-            splash.style.display = 'flex';
-            setTimeout(() => { splash.style.opacity = '1'; }, 10);
+            // 2. ACTIVACIÓN ULTRA-SMOOTH
+            // Bloqueamos el scroll del body mientras está la alerta
+            document.body.style.overflow = 'hidden';
             
-            // Cierre automático en 10s
-            setTimeout(closeSplash, 10000);
+            // Activamos la clase que dispara las transiciones CSS aceleradas por GPU
+            overlay.classList.add('active');
+            
+            // 3. CONTROL DE TIEMPO (10 SEGUNDOS)
+            // Guardamos el timer para poder cancelarlo si el usuario toca antes
+            autoCloseTimer = setTimeout(closeNeonOverlay, 10000);
         }
 
-        function closeSplash() {
-            const splash = document.getElementById('summarySplash');
-            splash.style.opacity = '0';
-            setTimeout(() => { splash.style.display = 'none'; }, 600);
+        // NUEVA FUNCIÓN: Cierre suave y limpieza
+        function closeNeonOverlay() {
+            const overlay = document.getElementById('neonOverlay');
+            
+            // Cancelamos el temporizador automático por si acaso
+            if (autoCloseTimer) clearTimeout(autoCloseTimer);
+            
+            // Quitamos la clase activa para disparar el fade out CSS
+            overlay.classList.remove('active');
+            
+            // Reactivamos el scroll del body
+            document.body.style.overflow = '';
+
+            // Esperamos a que termine la transición de opacidad (0.5s) para limpiar el display
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                // Aseguramos que el display vuelva a 'none' para que no bloquee clics
+            }, 500); 
         }
 
         function stepWeight(val) {
@@ -198,11 +267,11 @@
             list.innerHTML = '';
             [...logs].sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(entry => {
                 const div = document.createElement('div');
-                div.className = "flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700 shadow-sm";
+                div.className = "flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700 shadow-sm card hover:scale-[1.01]";
                 div.innerHTML = `
                     <span class="font-black text-slate-800 dark:text-white text-lg">${entry.weight} kg</span>
                     <span class="text-[10px] font-bold text-slate-400 uppercase">${entry.date}</span>
-                    <button onclick="deleteEntry(${entry.id})" class="text-slate-300 px-2">✕</button>
+                    <button onclick="deleteEntry(${entry.id})" class="text-slate-200 hover:text-red-400 p-1">✕</button>
                 `;
                 list.appendChild(div);
             });
