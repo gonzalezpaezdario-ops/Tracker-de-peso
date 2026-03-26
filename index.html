@@ -24,35 +24,36 @@
         input[type=number] { -moz-appearance: textfield; }
         .title-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
 
-        /* Animación Neón y Desvanecimiento */
-        @keyframes neonPulse {
-            0%, 100% { text-shadow: 0 0 5px #10b981, 0 0 10px #10b981; opacity: 0.9; }
-            50% { text-shadow: 0 0 15px #10b981, 0 0 { 30px #10b981; opacity: 1; }
-        }
-        
-        #summaryPanel {
+        /* CAPA NEÓN DE ENTRADA (SPLASH SCREEN) */
+        #summarySplash {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: none;
-            align-items: center; justify-content: center;
-            z-index: 9999;
-            backdrop-filter: blur(12px);
+            inset: 0;
+            z-index: 99999;
+            display: none; /* Se activa por JS */
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(15px);
             background: rgba(248, 250, 252, 0.9);
-            transition: opacity 0.8s ease, visibility 0.8s;
+            opacity: 0;
+            transition: opacity 0.6s ease;
         }
-        .dark #summaryPanel { background: rgba(15, 23, 42, 0.95); }
+        .dark #summarySplash { background: rgba(15, 23, 42, 0.96); }
 
-        .neon-content { animation: neonPulse 1.5s infinite; }
+        @keyframes neonPulse {
+            0%, 100% { text-shadow: 0 0 10px #10b981, 0 0 20px #10b981; transform: scale(1); }
+            50% { text-shadow: 0 0 20px #10b981, 0 0 40px #10b981; transform: scale(1.02); }
+        }
+        .neon-content { animation: neonPulse 2s infinite ease-in-out; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-10 px-4">
     
-    <div id="summaryPanel" onclick="closeSummary()">
-        <div class="max-w-xs text-center p-8 rounded-[3rem] neon-content">
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-4">Estado del Progreso</p>
+    <div id="summarySplash" onclick="closeSplash()">
+        <div class="max-w-xs text-center p-8 neon-content">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] mb-4">Análisis de Progreso</p>
             <p id="totalLostText" class="text-5xl font-black text-emerald-500 tracking-tighter mb-6"></p>
-            <p id="motivationText" class="text-sm text-slate-600 dark:text-slate-300 font-bold leading-relaxed mb-8 italic"></p>
-            <p class="text-[8px] text-slate-400 uppercase tracking-widest animate-pulse mt-4">Toca para continuar</p>
+            <p id="motivationText" class="text-sm text-slate-600 dark:text-slate-300 font-bold leading-relaxed italic mb-8"></p>
+            <p class="text-[8px] text-slate-400 uppercase tracking-widest animate-bounce">Toca para entrar</p>
         </div>
     </div>
 
@@ -100,28 +101,29 @@
             if (logs.length > 0) {
                 const sorted = [...logs].sort((a,b) => new Date(a.date) - new Date(b.date));
                 weightInput.value = sorted[sorted.length - 1].weight;
+                
+                // SOLO ACTIVAR EL SPLASH SI HAY DATOS PARA COMPARAR
+                if (logs.length >= 2) {
+                    showSplash(sorted);
+                }
             } else {
                 weightInput.value = "75.00";
             }
+            
             updateChart();
             renderHistory();
-            generateSummary(); 
         }
 
-        // Lógica de Resumen Temporal (Splash)
-        function generateSummary() {
-            if (logs.length < 2) return;
-
-            const panel = document.getElementById('summaryPanel');
+        // Lógica de la Pantalla Splash
+        function showSplash(sortedLogs) {
+            const splash = document.getElementById('summarySplash');
             const totalText = document.getElementById('totalLostText');
             const motivText = document.getElementById('motivationText');
 
-            const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
             const firstWeight = sortedLogs[0].weight;
             const currentWeight = sortedLogs[sortedLogs.length - 1].weight;
             const totalDiff = (currentWeight - firstWeight).toFixed(2);
 
-            // Texto de peso total
             if (totalDiff < 0) {
                 totalText.innerText = `${Math.abs(totalDiff)} kg MENOS`;
             } else if (totalDiff > 0) {
@@ -142,23 +144,20 @@
                 "¡Gran trabajo! Cada gramo cuenta y vas por muy buen camino."
             ];
 
-            if (lastDiff > 0.05) {
-                motivText.innerText = messages[Math.floor(Math.random() * 4)];
-            } else {
-                motivText.innerText = messages[4];
-            }
+            motivText.innerText = (lastDiff > 0.05) ? messages[Math.floor(Math.random() * 4)] : messages[4];
 
-            // Mostrar el panel con Flexbox
-            panel.style.display = 'flex';
+            // Mostrar con pequeña demora para asegurar el renderizado
+            splash.style.display = 'flex';
+            setTimeout(() => { splash.style.opacity = '1'; }, 10);
             
-            // Cerrar automáticamente a los 10 segundos
-            setTimeout(closeSummary, 10000);
+            // Cierre automático en 10s
+            setTimeout(closeSplash, 10000);
         }
 
-        function closeSummary() {
-            const panel = document.getElementById('summaryPanel');
-            panel.style.opacity = '0';
-            setTimeout(() => { panel.style.display = 'none'; }, 800);
+        function closeSplash() {
+            const splash = document.getElementById('summarySplash');
+            splash.style.opacity = '0';
+            setTimeout(() => { splash.style.display = 'none'; }, 600);
         }
 
         function stepWeight(val) {
@@ -172,7 +171,6 @@
             if (!ctx) return;
             const isDark = document.documentElement.classList.contains('dark');
             const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
-            
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
                 type: 'line',
@@ -181,8 +179,7 @@
                     datasets: [{
                         data: sortedLogs.map(l => l.weight),
                         borderColor: '#10b981',
-                        borderWidth: 4,
-                        tension: 0.3, pointRadius: 5, pointBackgroundColor: '#10b981', fill: false
+                        borderWidth: 4, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#10b981', fill: false
                     }]
                 },
                 options: {
@@ -207,7 +204,7 @@
                     <span class="text-[10px] font-bold text-slate-400 uppercase">${entry.date}</span>
                     <button onclick="deleteEntry(${entry.id})" class="text-slate-300 px-2">✕</button>
                 `;
-                historyList.appendChild(div);
+                list.appendChild(div);
             });
         }
 
