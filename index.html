@@ -25,6 +25,16 @@
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         .title-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+
+        /* Animación Neón para el resumen */
+        @keyframes neonText {
+            0%, 100% { text-shadow: 0 0 5px rgba(16, 185, 129, 0.2), 0 0 10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.1); opacity: 0.8; }
+            50% { text-shadow: 0 0 10px rgba(16, 185, 129, 0.6), 0 0 20px rgba(16, 185, 129, 0.4), 0 0 40px rgba(16, 185, 129, 0.3); opacity: 1; }
+        }
+        .neon-summary {
+            animation: neonText 2s ease-in-out infinite;
+            display: none; /* Se activa por JS */
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-10 px-4">
@@ -34,9 +44,15 @@
             <button id="themeToggle" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border dark:border-slate-700 text-xl"></button>
         </header>
 
+        <div id="summaryPanel" class="neon-summary bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl mb-6 border dark:border-slate-700 text-center">
+            <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2">Progreso Total</p>
+            <p id="totalLostText" class="text-4xl font-black text-emerald-500 dark:text-emerald-400 tracking-tighter mb-3"></p>
+            <p id="motivationText" class="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed px-2"></p>
+        </div>
+
         <div class="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl mb-4 border dark:border-slate-700">
             <form id="weightForm" class="space-y-6 text-center">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peso hoy (kg)</label>
+                <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Peso hoy (kg)</label>
                 <input type="number" id="weightInput" step="0.01" required class="w-full bg-transparent text-center text-6xl font-black text-slate-800 dark:text-white outline-none">
                 <input type="date" id="dateInput" required class="w-full p-4 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 text-center">
                 <button type="submit" class="w-full bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-lg uppercase text-xs active:scale-95 transition-all">Registrar</button>
@@ -79,6 +95,64 @@
             }
             updateChart();
             renderHistory();
+            generateSummary(); // Generar resumen al iniciar
+        }
+
+        // NUEVA FUNCIÓN: Lógica del Resumen Motivador
+        function generateSummary() {
+            const panel = document.getElementById('summaryPanel');
+            const totalText = document.getElementById('totalLostText');
+            const motivText = document.getElementById('motivationText');
+
+            if (logs.length < 2) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            // Ordenar cronológicamente
+            const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const firstWeight = sortedLogs[0].weight;
+            const currentWeight = sortedLogs[sortedLogs.length - 1].weight;
+            const totalDiff = (currentWeight - firstWeight).toFixed(2);
+
+            panel.style.display = 'block';
+
+            // 1. Texto de peso total
+            if (totalDiff < 0) {
+                totalText.innerText = `${Math.abs(totalDiff)} kg PERDIDOS`;
+                totalText.className = "text-4xl font-black text-emerald-500 dark:text-emerald-400 tracking-tighter mb-3";
+            } else if (totalDiff > 0) {
+                totalText.innerText = `${totalDiff} kg GANADOS`;
+                totalText.className = "text-4xl font-black text-red-500 dark:text-red-400 tracking-tighter mb-3";
+            } else {
+                totalText.innerText = "MANTENIENDO PESO";
+                totalText.className = "text-3xl font-black text-slate-500 dark:text-slate-400 tracking-tighter mb-3";
+            }
+
+            // 2. Lógica de motivación realista
+            const lastWeight = sortedLogs[sortedLogs.length - 1].weight;
+            const prevWeight = sortedLogs[sortedLogs.length - 2].weight;
+            const lastDiff = (lastWeight - prevWeight).toFixed(2);
+
+            const messages = [
+                "¡Ojo! Una subida puntual suele ser retención de líquidos o glucógeno. No es grasa real. ¡Sigue confiando en tu déficit!",
+                "Las fluctuaciones son normales. El peso no baja en línea recta. Mira tu gráfico: la tendencia general es lo que cuenta.",
+                "Mantén la calma. Si sigues en déficit, estás perdiendo grasa aunque el número suba hoy. ¡No te rindas!",
+                "Has tenido subidas y bajadas, pero es parte del proceso. Tu cuerpo se está ajustando. ¡A por el siguiente registro!",
+                "¡Gran trabajo! Sigue así. Cada gramo cuenta y vas por muy buen camino."
+            ];
+
+            if (lastDiff > 0.1) {
+                // Ha subido más de 100g
+                const randomSubida = messages[Math.floor(Math.random() * 4)]; // Mensajes 0 al 3 (motivadores de fluctuación)
+                motivText.innerText = `${randomSubida} (Subida de ${lastDiff} kg respecto al último registro).`;
+            } else if (lastDiff < -0.1) {
+                // Ha bajado más de 100g
+                motivText.innerText = messages[4]; // Mensaje de éxito
+            } else {
+                // Mantenimiento
+                motivText.innerText = "Peso estable. Sigue siendo constante, los resultados llegarán.";
+            }
         }
 
         function stepWeight(val) {
@@ -138,7 +212,7 @@
                     <span class="text-[10px] font-bold text-slate-400 uppercase">${entry.date}</span>
                     <button onclick="deleteEntry(${entry.id})" class="text-slate-300 px-2 hover:text-red-500">✕</button>
                 `;
-                historyList.appendChild(div);
+                list.appendChild(div);
             });
         }
 
@@ -151,6 +225,7 @@
             localStorage.setItem('weightLogs', JSON.stringify(logs));
             updateChart();
             renderHistory();
+            generateSummary(); // Actualizar resumen al añadir
         };
 
         window.deleteEntry = (id) => {
@@ -159,6 +234,7 @@
                 localStorage.setItem('weightLogs', JSON.stringify(logs));
                 updateChart();
                 renderHistory();
+                generateSummary(); // Actualizar resumen al borrar
             }
         };
 
